@@ -9,6 +9,8 @@ from keras.preprocessing.sequence import pad_sequences
 from keras.models import Sequential
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
+import emojies
+import matplotlib.pyplot as plt
 
 
 # !Space Correction & Pinglish Convertor
@@ -34,25 +36,46 @@ def stop_word(text):
     return tokens
 
 
-# !Reading a File
-log = pd.read_csv(r'F:\sourcecode\pardazesh01\data.csv', index_col=False)
-# log = log[:10]
+# !Convert Emojis
+def convert_emojis(text):
+    text = emojies.replace(text)
+    return text
 
+
+# !Reading a File
+# log = pd.read_csv(r'F:\sourcecode\pardazesh01\data.csv', index_col=False)
+log = pd.read_excel(r'F:\sourcecode\pardazesh01\1e4_S_01.xlsx', index_col=False)
+# log = log[:2000]
+
+# create figure and axis
+fig, ax = plt.subplots()
+ax.hist(log['tag'])
+plt.show()
 # !Applying Clean Function
-max_len = 100
-log['clean'] = log['Text'].apply(lambda x: normalize(x))
+max_len = 200
+log['clean'] = log['Text'].apply(lambda x: convert_emojis(x))
+log['clean'] = log['clean'].apply(lambda x: normalize(x))
 # log['clean'] = log['clean'].apply(lambda x: spell_check(x))
-# log['clean'] = log['clean'].apply(lambda x: stop_word(x))
+log['clean'] = log['clean'].apply(lambda x: stop_word(x))
 log['clean'] = log['clean'].apply(lambda x: x[:max_len])
 
 # !Creating Uniform Data
-log_list = [list(x) for x in zip(log['clean'], log['Suggestion'])]
-pos = list(filter(lambda x: x[1] == 1, log_list))
-un = list(filter(lambda x: x[1] == 2, log_list))
-neg = list(filter(lambda x: x[1] == 3, log_list))
+log_list = [list(x) for x in zip(log['clean'], log['tag'])]
 
-log_list = pos[:450]+neg[:450]+un[:450]
+# pos = list(filter(lambda x: x[1] == 1, log_list))
+# un = list(filter(lambda x: x[1] == 2, log_list))
+# neg = list(filter(lambda x: x[1] == 3, log_list))
+
+# !Filter Category
+khs = list(filter(lambda x: x[1] == 5, log_list))
+khn = list(filter(lambda x: x[1] == 6, log_list))
+shd = list(filter(lambda x: x[1] == 8, log_list))
+ghm = list(filter(lambda x: x[1] == 9, log_list))
+
+# log_list = pos[:450]+neg[:450]+un[:450]
 # log_list = pos + neg + un
+# log_list = khs[:900]+khn[:900]+shd[:900]+ghm[:900]
+log_list = khs[:2000]+shd[:2000]
 
 # !Train and Test Split
 X, Y = zip(*log_list)
@@ -93,9 +116,14 @@ print(model.summary())
 model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
 
 # Fitting Network
-m = model.fit(encode_trainX, encode_trainY, epochs=20, verbose=2)
+m = model.fit(encode_trainX, encode_trainY, epochs=50, verbose=2)
 
 # Evaluating Network
 loss, acc = model.evaluate(encode_testX, encode_testY, verbose=0)
 print('Test Accuracy: %f' % (acc * 100))
 print('Test loss: %f' % loss)
+# !khashm, khonsa, shadi, gham of 1e4
+# model.save('s_1e4.model')
+# !khashm, shadi of 1e4 83%
+model.save('s_2_1e4.model')
+
