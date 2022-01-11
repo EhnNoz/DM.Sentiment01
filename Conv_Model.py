@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import re
 from nltk.corpus import stopwords
 from parsivar import Normalizer, SpellCheck
 from keras.layers import Embedding, Conv1D, MaxPooling1D, Flatten, Dense
@@ -14,31 +15,61 @@ import matplotlib.pyplot as plt
 
 
 # !Space Correction & Pinglish Convertor
-def normalize(text):
-    normalizer = Normalizer(pinglish_conversion_needed=True)
-    text = normalizer.normalize(text)
-    return text
+# def normalize(text):
+#     normalizer = Normalizer(pinglish_conversion_needed=True)
+#     text = normalizer.normalize(text)
+#     return text
 
 
 # !Spell Check
-def spell_check(text):
-    spell_checker = SpellCheck()
-    text = spell_checker.spell_corrector(text)
-    return text
+# def spell_check(text):
+#     spell_checker = SpellCheck()
+#     text = spell_checker.spell_corrector(text)
+#     return text
 
 
 # !Remove StopWord
-def stop_word(text):
-    tokens = text.split()
-    stop_words = set(stopwords.words('persian'))
-    tokens = [w for w in tokens if not w in stop_words]
-    tokens = ' '.join(tokens)
-    return tokens
+# def stop_word(text):
+#     tokens = text.split()
+#     stop_words = set(stopwords.words('persian'))
+#     tokens = [w for w in tokens if not w in stop_words]
+#     tokens = ' '.join(tokens)
+#     return tokens
 
 
 # !Convert Emojis
-def convert_emojis(text):
+# def convert_emojis(text):
+#     text = emojies.replace(text)
+#     return text
+
+# !Clean Punctual
+def clean_punctual(text):
+    text = re.sub(r'https?:\S*', '', text)
+    text = re.sub(r'#|_|:', ' ', text)
+    text = re.sub(r'@[A-Za-z0-9]+', '', text)
+    return text
+
+
+# !Clean Function
+def clean_text(text):
+    # !Convert Emojis
     text = emojies.replace(text)
+    # !clean punctual
+    text = clean_punctual(text)
+    # !Space Correction & Pinglish Convertor
+    normalizer = Normalizer(pinglish_conversion_needed=True)
+    text = normalizer.normalize(text)
+    # !Spell Check
+    # spell_checker = SpellCheck()
+    # text = spell_checker.spell_corrector(text)
+    # !Remove StopWord
+    tokens = text.split()
+    stop_words = set(stopwords.words('persian'))
+    tokens = [w for w in tokens if not w in stop_words]
+    text = ' '.join(tokens)
+    # !Split Text
+    length = 200
+    text = text[:length]
     return text
 
 
@@ -51,22 +82,24 @@ log = pd.read_excel(r'F:\sourcecode\pardazesh01\1e4_S_01.xlsx', index_col=False)
 fig, ax = plt.subplots()
 ax.hist(log['tag'])
 plt.show()
+
 # !Applying Clean Function
-max_len = 200
-log['clean'] = log['Text'].apply(lambda x: convert_emojis(x))
-log['clean'] = log['clean'].apply(lambda x: normalize(x))
+log['clean'] = log['Text'].apply(lambda x: clean_text(x))
+# max_len = 200
+# log['clean'] = log['Text'].apply(lambda x: convert_emojis(x))
+# log['clean'] = log['clean'].apply(lambda x: normalize(x))
 # log['clean'] = log['clean'].apply(lambda x: spell_check(x))
-log['clean'] = log['clean'].apply(lambda x: stop_word(x))
-log['clean'] = log['clean'].apply(lambda x: x[:max_len])
+# log['clean'] = log['clean'].apply(lambda x: stop_word(x))
+# log['clean'] = log['clean'].apply(lambda x: x[:max_len])
 
 # !Creating Uniform Data
 log_list = [list(x) for x in zip(log['clean'], log['tag'])]
 
+
+# !Filter Category
 # pos = list(filter(lambda x: x[1] == 1, log_list))
 # un = list(filter(lambda x: x[1] == 2, log_list))
 # neg = list(filter(lambda x: x[1] == 3, log_list))
-
-# !Filter Category
 khs = list(filter(lambda x: x[1] == 5, log_list))
 khn = list(filter(lambda x: x[1] == 6, log_list))
 shd = list(filter(lambda x: x[1] == 8, log_list))
@@ -74,19 +107,23 @@ ghm = list(filter(lambda x: x[1] == 9, log_list))
 
 # log_list = pos[:450]+neg[:450]+un[:450]
 # log_list = pos + neg + un
-# log_list = khs[:900]+khn[:900]+shd[:900]+ghm[:900]
+# log_list = khs[:900] + khn[:900] + shd[:900] + ghm[:900]
 log_list = khs[:2000]+shd[:2000]
 
 # !Train and Test Split
 X, Y = zip(*log_list)
 trainX, testX, trainY, testY = train_test_split(X, Y, train_size=0.9)
-
+_trainX = pd.DataFrame()
+_trainX['train'] = trainX
 # !Tokenizing Text
 tk = Tokenizer()
 tk.fit_on_texts(trainX)
 vocab_size = len(tk.word_index) + 1
 encode_trainX = tk.texts_to_sequences(trainX)
+_trainX['encode_trainX'] = encode_trainX
+_trainX.to_csv(r'train.csv')
 encode_testX = tk.texts_to_sequences(testX)
+max_len = 200
 encode_trainX = pad_sequences(encode_trainX, maxlen=max_len)
 encode_testX = pad_sequences(encode_testX, maxlen=max_len)
 
@@ -123,7 +160,7 @@ loss, acc = model.evaluate(encode_testX, encode_testY, verbose=0)
 print('Test Accuracy: %f' % (acc * 100))
 print('Test loss: %f' % loss)
 # !khashm, khonsa, shadi, gham of 1e4
-# model.save('s_1e4.model')
+# model.save('c_s_4_1e4.model')
 # !khashm, shadi of 1e4 83%
 model.save('s_2_1e4.model')
-
+# model.save('c_s_2_1e4.model')
